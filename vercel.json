@@ -1,4 +1,5 @@
 {
+  "name": "fitness-tracker",
   "rewrites": [
     {
       "source": "/(.*)",

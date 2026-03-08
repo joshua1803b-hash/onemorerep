@@ -13,6 +13,18 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
   const [totalTime, setTotalTime] = useState(0)
   const { displayWeight } = useSettings()
 
+  // Prevent scrolling when logging set
+  useEffect(() => {
+    if (logging) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [logging])
+
   useEffect(() => {
     if (!resting || timeLeft <= 0) return
 

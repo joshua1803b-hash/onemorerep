@@ -297,7 +297,7 @@ export default function TodayTab({ onBack }) {
   if (state.isOverviewMode) {
     // Overview mode: show all exercises
     return (
-      <div className="pb-20 px-4 py-4">
+      <div className="pb-20 px-4 py-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex-1">
             <h2 className="text-lg font-bold">{state.selectedSession}</h2>
@@ -381,7 +381,7 @@ export default function TodayTab({ onBack }) {
 
   // Default view: show only current set
   return (
-    <div className="pb-20 px-4 py-4 flex flex-col min-h-screen">
+    <div className="pb-20 px-4 flex flex-col min-h-screen" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '5rem' }}>
       <div className="flex items-center justify-between mb-8">
         <div className="flex-1">
           <h2 className="text-lg font-bold">{state.selectedSession}</h2>
