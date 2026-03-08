@@ -129,7 +129,7 @@ function workoutReducer(state, action) {
   }
 }
 
-export default function TodayTab() {
+export default function TodayTab({ onBack }) {
   const program = useLiveQuery(() => db.program.toArray().then(p => p[0]))
   const [state, dispatch] = useReducer(workoutReducer, initialState)
 
@@ -299,18 +299,28 @@ export default function TodayTab() {
     return (
       <div className="pb-20 px-4 py-4">
         <div className="flex items-center justify-between mb-6">
-          <div>
+          <div className="flex-1">
             <h2 className="text-lg font-bold">{state.selectedSession}</h2>
             <p className="text-sm text-secondary mt-1">
               {state.exercises.filter(ex => ex.setsCompleted === ex.sets.length).length}/{state.exercises.length} exercises done
             </p>
           </div>
-          <button
-            onClick={() => dispatch({ type: 'TOGGLE_OVERVIEW' })}
-            className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_OVERVIEW' })}
+              className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
+            >
+              ✕
+            </button>
+            {onBack && (
+              <button
+                onClick={() => onBack()}
+                className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
+              >
+                Back
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -373,18 +383,28 @@ export default function TodayTab() {
   return (
     <div className="pb-20 px-4 py-4 flex flex-col min-h-screen">
       <div className="flex items-center justify-between mb-8">
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-bold">{state.selectedSession}</h2>
           <p className="text-sm text-secondary mt-1">
             {state.exercises.filter(ex => ex.setsCompleted === ex.sets.length).length}/{state.exercises.length} exercises
           </p>
         </div>
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_OVERVIEW' })}
-          className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
-        >
-          Overview
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_OVERVIEW' })}
+            className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
+          >
+            Overview
+          </button>
+          {onBack && (
+            <button
+              onClick={() => onBack()}
+              className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors"
+            >
+              Back
+            </button>
+          )}
+        </div>
       </div>
 
       {currentExercise && (
