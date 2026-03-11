@@ -1,6 +1,21 @@
+import { useState } from 'react'
 import { db } from '../../db/db'
+import { seedProgram, JEFF_NIPPARD_4X } from '../../db/seed'
 
 export default function MeTab({ onBack }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleLoadProgram() {
+    setLoading(true)
+    try {
+      await seedProgram(JEFF_NIPPARD_4X)
+      window.location.reload()
+    } catch (err) {
+      console.error('Failed to load program:', err)
+      setLoading(false)
+    }
+  }
+
   async function handleReset() {
     if (confirm('This will delete all data. Are you sure?')) {
       try {
@@ -24,6 +39,17 @@ export default function MeTab({ onBack }) {
           className="text-sm font-medium hover:bg-divider rounded px-3 py-2 transition-colors"
         >
           Back
+        </button>
+      </div>
+
+      {/* Load Program */}
+      <div className="border-t border-divider pt-4">
+        <button
+          onClick={handleLoadProgram}
+          disabled={loading}
+          className="w-full py-3 bg-black text-white rounded font-medium transition-colors hover:bg-[#333333] disabled:opacity-50"
+        >
+          {loading ? 'Loading Program...' : 'Load Default Program'}
         </button>
       </div>
 

@@ -39,10 +39,13 @@ export default function PostWorkoutSummary({ exercises, sessionLabel, startTime,
       // Save workout log
       await logWorkout(workoutEntry)
 
-      // Update progression states
+      // Update progression states (skip bonus exercises)
       const program = await db.program.toArray().then(p => p[0])
       if (program) {
         for (const exercise of exercises) {
+          // Skip bonus exercises - they're not in the program
+          if (exercise.isBonus) continue
+
           const programExercise = program.sessions
             ?.flatMap(s => s.exercises)
             .find(e => e.exerciseId === exercise.exerciseId)

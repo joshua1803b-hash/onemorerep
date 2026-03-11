@@ -121,6 +121,9 @@ function workoutReducer(state, action) {
         currentSessionIndex: action.payload.index
       }
 
+    case 'SKIP_WORKOUT':
+      return initialState
+
     case 'RESET':
       return initialState
 
@@ -135,9 +138,11 @@ export default function TodayTab({ onBack }) {
 
   const sessions = program?.sessions || []
 
-  // Auto-select and start next session on mount
+  // Auto-select and start next session on mount or when returning from summary
   useEffect(() => {
     if (sessions.length === 0) return
+    // Only auto-start if in picking mode (initial load or after reset)
+    if (state.mode !== 'picking') return
 
     async function autoStartWorkout() {
       const lastSessionSetting = await db.settings.get('lastSessionLabel')
@@ -214,7 +219,7 @@ export default function TodayTab({ onBack }) {
     }
 
     autoStartWorkout()
-  }, [sessions.length])
+  }, [sessions.length, state.mode])
 
 
   function handleSetComplete(exerciseIndex, setIndex, reps, rpe, weight) {
@@ -374,6 +379,17 @@ export default function TodayTab({ onBack }) {
               View Summary
             </button>
           )}
+
+          <button
+            onClick={async () => {
+              // Save current session as "last completed" before skipping
+              await db.settings.put({ key: 'lastSessionLabel', value: state.selectedSession })
+              dispatch({ type: 'SKIP_WORKOUT' })
+            }}
+            className="w-full py-3 bg-divider text-black font-semibold rounded transition-colors hover:bg-[#d0d0d0] mt-3"
+          >
+            Skip Workout
+          </button>
         </div>
       </div>
     )
