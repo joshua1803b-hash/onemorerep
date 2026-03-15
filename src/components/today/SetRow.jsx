@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../contexts/SettingsContext'
 import { getRestDuration } from '../../utils/muscleGroups'
 
@@ -11,6 +11,7 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
   const [resting, setResting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
   const [totalTime, setTotalTime] = useState(0)
+  const intervalRef = useRef(null)
   const { displayWeight } = useSettings()
 
   // Prevent scrolling when logging set
@@ -28,7 +29,7 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
   useEffect(() => {
     if (!resting || timeLeft <= 0) return
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setTimeLeft(prev => {
         const newTime = prev - 1
         if (newTime <= 0) {
@@ -45,13 +46,21 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
       })
     }, 1000)
 
-    return () => clearInterval(interval)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   }, [resting, timeLeft, reps, rpe, weight, onComplete, set.weight])
 
   if (!logging && !resting) {
     return (
       <button
-        onClick={() => setLogging(true)}
+        onClick={() => {
+          setWeight(set.weight)
+          setLogging(true)
+        }}
         className={`w-full p-3 rounded border transition-all ${
           set.completed
             ? 'border-divider bg-divider/50 opacity-60'
@@ -89,6 +98,10 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
   }
 
   function skipTimer() {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
     setResting(false)
     onComplete(parseInt(reps), rpe, weight)
     setLogging(false)
@@ -124,7 +137,7 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
     <div className="p-3 border border-black rounded-lg bg-white space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Set {set.setNumber}</span>
-        <span className="text-xs text-secondary">{displayWeight(set.weight)} × {set.targetReps}</span>
+        <span className="text-xs text-secondary">{displayWeight(weight)} × {set.targetReps}</span>
       </div>
 
       {/* Reps/Weight input */}

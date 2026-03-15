@@ -4,6 +4,7 @@ import { db } from '../../db/db'
 import { getProgressionState, getProgressionStates, initializeProgressionState } from '../../db/progression'
 import { getLastWorkoutForExercise } from '../../db/workoutLog'
 import { computeSessionWeight, updateProgressionAfterWorkout } from '../../utils/progressionEngine'
+import { saveActiveWorkout, loadActiveWorkout, clearActiveWorkout } from '../../db/activeWorkout'
 import ExerciseCard from './ExerciseCard'
 import PostWorkoutSummary from './PostWorkoutSummary'
 
@@ -43,6 +44,12 @@ function workoutReducer(state, action) {
           rpe,
           weight,
           completed: true
+        }
+        // Update weight for remaining incomplete sets of this exercise
+        for (let i = setIndex + 1; i < updated[exerciseIndex].sets.length; i++) {
+          if (!updated[exerciseIndex].sets[i].completed) {
+            updated[exerciseIndex].sets[i].weight = weight
+          }
         }
         updated[exerciseIndex].setsCompleted = updated[exerciseIndex].sets.filter(s => s.completed).length
       }
@@ -124,6 +131,9 @@ function workoutReducer(state, action) {
     case 'SKIP_WORKOUT':
       return initialState
 
+    case 'RESTORE_WORKOUT':
+      return action.payload
+
     case 'RESET':
       return initialState
 
@@ -138,11 +148,32 @@ export default function TodayTab({ onBack }) {
 
   const sessions = program?.sessions || []
 
-  // Auto-select and start next session on mount or when returning from summary
+  // Save active workout to database whenever state changes
+  useEffect(() => {
+    saveActiveWorkout(state)
+  }, [state])
+
+  // Load active workout on mount, or auto-select next session
   useEffect(() => {
     if (sessions.length === 0) return
     // Only auto-start if in picking mode (initial load or after reset)
     if (state.mode !== 'picking') return
+
+    async function loadOrStartWorkout() {
+      // Try to load active workout first
+      const activeWorkout = await loadActiveWorkout()
+      if (activeWorkout) {
+        // Restore the active workout
+        dispatch({
+          type: 'RESTORE_WORKOUT',
+          payload: activeWorkout
+        })
+        return
+      }
+
+      // No active workout, proceed with auto-start
+      autoStartWorkout()
+    }
 
     async function autoStartWorkout() {
       const lastSessionSetting = await db.settings.get('lastSessionLabel')
@@ -218,7 +249,7 @@ export default function TodayTab({ onBack }) {
       }
     }
 
-    autoStartWorkout()
+    loadOrStartWorkout()
   }, [sessions.length, state.mode])
 
 
@@ -290,7 +321,10 @@ export default function TodayTab({ onBack }) {
         exercises={state.exercises}
         sessionLabel={state.selectedSession}
         startTime={state.startTime}
-        onDone={() => dispatch({ type: 'RESET' })}
+        onDone={async () => {
+          await clearActiveWorkout()
+          dispatch({ type: 'RESET' })
+        }}
       />
     )
   }
@@ -384,6 +418,7 @@ export default function TodayTab({ onBack }) {
             onClick={async () => {
               // Save current session as "last completed" before skipping
               await db.settings.put({ key: 'lastSessionLabel', value: state.selectedSession })
+              await clearActiveWorkout()
               dispatch({ type: 'SKIP_WORKOUT' })
             }}
             className="w-full py-3 bg-divider text-black font-semibold rounded transition-colors hover:bg-[#d0d0d0] mt-3"

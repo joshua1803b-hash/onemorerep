@@ -14,7 +14,7 @@ function AppContent() {
   const [onboarded, setOnboarded] = useState(null)
   const { loaded } = useSettings()
 
-  // Check onboarding status on mount
+  // Check onboarding status on mount and when app resumes from standby or rotates
   useEffect(() => {
     async function checkOnboarding() {
       try {
@@ -22,11 +22,32 @@ function AppContent() {
         setOnboarded(setting?.value === true)
       } catch (err) {
         console.error('Failed to check onboarding:', err)
+        // Default to false if database fails, user can re-onboard
         setOnboarded(false)
       }
     }
 
     checkOnboarding()
+
+    // Re-check onboarding when app comes back from standby
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        checkOnboarding()
+      }
+    }
+
+    // Re-check onboarding when device orientation changes
+    function handleOrientationChange() {
+      checkOnboarding()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('orientationchange', handleOrientationChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('orientationchange', handleOrientationChange)
+    }
   }, [])
 
   if (!loaded || onboarded === null) {
