@@ -8,6 +8,7 @@ import TodayTab from './components/today/TodayTab'
 import HistoryTab from './components/history/HistoryTab'
 import MeTab from './components/me/MeTab'
 import Onboarding from './components/Onboarding'
+import { restoreFromSupabase } from './db/sync'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState(null) // null means home screen
@@ -27,7 +28,17 @@ function AppContent() {
       }
     }
 
-    checkOnboarding()
+    async function restoreIfEmpty() {
+      const [workoutCount, programCount] = await Promise.all([
+        db.workoutLog.count(),
+        db.program.count()
+      ])
+      if (workoutCount === 0 && programCount === 0) {
+        await restoreFromSupabase()
+      }
+    }
+
+    restoreIfEmpty().then(checkOnboarding)
 
     // Re-check onboarding when app comes back from standby
     function handleVisibilityChange() {

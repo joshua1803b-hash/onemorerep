@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useSettings } from '../../contexts/SettingsContext'
 import { logWorkout } from '../../db/workoutLog'
-import { updateProgressionState } from '../../db/progression'
+import { updateProgressionState, getAllProgressionStates } from '../../db/progression'
 import { updateProgressionAfterWorkout } from '../../utils/progressionEngine'
 import { db } from '../../db/db'
+import { pushWorkout, pushProgressionStates } from '../../db/sync'
 
 export default function PostWorkoutSummary({ exercises, sessionLabel, startTime, onDone }) {
   const [saving, setSaving] = useState(false)
@@ -46,15 +47,15 @@ export default function PostWorkoutSummary({ exercises, sessionLabel, startTime,
           // Skip bonus exercises - they're not in the program
           if (exercise.isBonus) continue
 
-          const programExercise = program.sessions
-            ?.flatMap(s => s.exercises)
-            .find(e => e.exerciseId === exercise.exerciseId)
+          const programExercise = (program.sessions?.flatMap(s => s.exercises || []) || [])
+            .find(e => e?.exerciseId === exercise.exerciseId)
 
           if (programExercise) {
+            const lastSet = exercise.sets[exercise.sets.length - 1]
             const updated = updateProgressionAfterWorkout(
               {
                 exerciseId: exercise.exerciseId,
-                currentWeight: exercise.sets[exercise.sets.length - 1].weight
+                currentWeight: lastSet?.weight ?? 0
               },
               programExercise,
               exercise.sets.filter(s => s.completed)
@@ -67,6 +68,12 @@ export default function PostWorkoutSummary({ exercises, sessionLabel, startTime,
 
       // Save last session label
       await db.settings.put({ key: 'lastSessionLabel', value: sessionLabel })
+
+      // Sync to Supabase in background (fire and forget)
+      const savedWorkout = await db.workoutLog.orderBy('date').last()
+      const allProgressions = await getAllProgressionStates()
+      if (savedWorkout) pushWorkout(savedWorkout)
+      if (allProgressions.length) pushProgressionStates(allProgressions)
 
       // Done
       onDone()
