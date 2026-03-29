@@ -11,7 +11,7 @@ export default function HistoryTab({ onBack }) {
 
   if (workouts.length === 0) {
     return (
-      <div className="px-4 py-4">
+      <div className="px-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">History</h1>
           <button
@@ -27,7 +27,7 @@ export default function HistoryTab({ onBack }) {
   }
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">History</h1>
         <button

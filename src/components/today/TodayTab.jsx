@@ -209,7 +209,7 @@ export default function TodayTab({ onBack }) {
             let sessionWeight = progression?.currentWeight || exercise.startingWeight || 0
             let weightReason = null
 
-            if (lastWorkoutData) {
+            if (lastWorkoutData?.exercise?.sets) {
               const { weight, reason } = computeSessionWeight(progression, {
                 exercise,
                 sets: lastWorkoutData.exercise.sets

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSettings } from '../../contexts/SettingsContext'
+import { shouldSuggestWeightIncrease, computeNextSetWeight } from '../../utils/progressionEngine'
 import SetRow from './SetRow'
 import SwapDrawer from './SwapDrawer'
 import BonusRound from './BonusRound'
@@ -51,9 +52,7 @@ export default function ExerciseCard({
                   onSetComplete(exerciseIndex, setIdx, reps, rpe, weight)
 
                   // Check if should suggest weight increase
-                  const { shouldSuggestWeightIncrease } = require('../../utils/progressionEngine')
                   if (shouldSuggestWeightIncrease(set, exercise.sets.length, setIdx + 1)) {
-                    const { computeNextSetWeight } = require('../../utils/progressionEngine')
                     const newWeight = computeNextSetWeight(set.weight, exercise.movementType)
                     onSuggestWeight(setIdx, newWeight)
                   }

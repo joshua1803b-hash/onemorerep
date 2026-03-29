@@ -8,8 +8,8 @@ import { db } from './db'
 export async function saveActiveWorkout(workoutState) {
   // Only save if actively logging (not in picking or summary mode)
   if (workoutState.mode === 'logging') {
-    await db.activeWorkout.clear()
-    await db.activeWorkout.add({
+    await db.activeWorkout.put({
+      id: 1,
       state: workoutState,
       savedAt: new Date().toISOString()
     })
@@ -21,11 +21,8 @@ export async function saveActiveWorkout(workoutState) {
  * @returns {Promise<Object|null>} - The saved reducer state, or null if none
  */
 export async function loadActiveWorkout() {
-  const records = await db.activeWorkout.toArray()
-  if (records.length > 0) {
-    return records[0].state
-  }
-  return null
+  const record = await db.activeWorkout.get(1)
+  return record?.state || null
 }
 
 /**

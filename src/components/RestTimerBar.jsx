@@ -10,13 +10,10 @@ export default function RestTimerBar() {
   const seconds = secondsRemaining % 60
 
   return (
-    <div className="fixed bottom-14 left-0 right-0 border-t border-divider bg-white z-40 p-3">
-      <style>{`
-        div {
-          padding-bottom: max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)));
-        }
-      `}</style>
-
+    <div
+      className="fixed bottom-14 left-0 right-0 border-t border-divider bg-white z-40 px-3 pt-3"
+      style={{ paddingBottom: 'max(0.75rem, calc(0.75rem + env(safe-area-inset-bottom)))' }}
+    >
       <div className="flex items-center gap-3">
         {/* Progress bar */}
         <div className="flex-1 h-1 bg-divider rounded-full overflow-hidden">

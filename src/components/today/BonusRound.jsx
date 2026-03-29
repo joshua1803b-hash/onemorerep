@@ -11,8 +11,7 @@ export default function BonusRound({ onSelect, sessionLabel }) {
   if (bonusMuscleGroups.length === 0) return null
 
   // Find exercises matching bonus muscle groups
-  const bonusExercises = program.sessions
-    ?.flatMap(s => s.exercises || [])
+  const bonusExercises = (program.sessions?.flatMap(s => s.exercises || []) || [])
     .filter(ex => bonusMuscleGroups.includes(ex.muscleGroup))
     .filter((ex, idx, arr) => arr.findIndex(e => e.exerciseId === ex.exerciseId) === idx) // dedup
 

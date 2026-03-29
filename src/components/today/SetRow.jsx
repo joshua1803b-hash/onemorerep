@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSettings } from '../../contexts/SettingsContext'
-import { getRestDuration } from '../../utils/muscleGroups'
 
 export default function SetRow({ set, setIndex, exerciseIndex, exercise, onComplete }) {
   const [logging, setLogging] = useState(false)
@@ -12,7 +11,7 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
   const [timeLeft, setTimeLeft] = useState(0)
   const [totalTime, setTotalTime] = useState(0)
   const intervalRef = useRef(null)
-  const { displayWeight } = useSettings()
+  const { displayWeight, compoundRest, isolationRest } = useSettings()
 
   // Prevent scrolling when logging set
   useEffect(() => {
@@ -34,12 +33,6 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
         const newTime = prev - 1
         if (newTime <= 0) {
           setResting(false)
-          onComplete(parseInt(reps), rpe, weight)
-          setLogging(false)
-          setReps('')
-          setWeight(set.weight)
-          setMode('reps')
-          setRpe(8.5)
           return 0
         }
         return newTime
@@ -52,7 +45,7 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
         intervalRef.current = null
       }
     }
-  }, [resting, timeLeft, reps, rpe, weight, onComplete, set.weight])
+  }, [resting, timeLeft])
 
   if (!logging && !resting) {
     return (
@@ -90,8 +83,12 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
       return
     }
 
+    // Mark set complete immediately
+    onComplete(parseInt(reps), rpe, weight)
+    setLogging(false)
+
     // Start rest timer
-    const duration = getRestDuration(exercise.movementType)
+    const duration = exercise.movementType === 'isolation' ? isolationRest : compoundRest
     setTotalTime(duration)
     setTimeLeft(duration)
     setResting(true)
@@ -103,12 +100,6 @@ export default function SetRow({ set, setIndex, exerciseIndex, exercise, onCompl
       intervalRef.current = null
     }
     setResting(false)
-    onComplete(parseInt(reps), rpe, weight)
-    setLogging(false)
-    setReps('')
-    setWeight(set.weight)
-    setMode('reps')
-    setRpe(8.5)
   }
 
   if (resting) {
