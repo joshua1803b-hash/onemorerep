@@ -15,7 +15,10 @@ export async function pushWorkout(workout) {
       exercises: workout.exercises
     }, { onConflict: 'local_id' })
 
-  if (error) console.error('Sync: failed to push workout', error)
+  if (error) {
+    console.error('Sync: failed to push workout', error)
+    alert(`Sync error: ${error.message}`)
+  }
 }
 
 /**

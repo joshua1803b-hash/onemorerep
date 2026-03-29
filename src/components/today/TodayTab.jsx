@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from 'react'
+import { useReducer, useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import { getProgressionState, getProgressionStates, initializeProgressionState } from '../../db/progression'
@@ -145,6 +145,7 @@ function workoutReducer(state, action) {
 export default function TodayTab({ onBack }) {
   const program = useLiveQuery(() => db.program.toArray().then(p => p[0]))
   const [state, dispatch] = useReducer(workoutReducer, initialState)
+  const [suggestedSession, setSuggestedSession] = useState(null)
 
   const sessions = program?.sessions || []
 
@@ -153,29 +154,18 @@ export default function TodayTab({ onBack }) {
     saveActiveWorkout(state)
   }, [state])
 
-  // Load active workout on mount, or auto-select next session
+  // Load active workout on mount, or determine suggested next session
   useEffect(() => {
     if (sessions.length === 0) return
-    // Only auto-start if in picking mode (initial load or after reset)
     if (state.mode !== 'picking') return
 
     async function loadOrStartWorkout() {
-      // Try to load active workout first
       const activeWorkout = await loadActiveWorkout()
       if (activeWorkout) {
-        // Restore the active workout
-        dispatch({
-          type: 'RESTORE_WORKOUT',
-          payload: activeWorkout
-        })
+        dispatch({ type: 'RESTORE_WORKOUT', payload: activeWorkout })
         return
       }
 
-      // No active workout, proceed with auto-start
-      autoStartWorkout()
-    }
-
-    async function autoStartWorkout() {
       const lastSessionSetting = await db.settings.get('lastSessionLabel')
       const lastSessionLabel = lastSessionSetting?.value
 
@@ -187,70 +177,67 @@ export default function TodayTab({ onBack }) {
         }
       }
 
-      // Auto-start the selected session
-      const session = sessions.find(s => s.label === nextSessionLabel)
-      if (session) {
-        // Initialize progression states for all exercises
-        for (const exercise of session.exercises) {
-          await initializeProgressionState(exercise.exerciseId, exercise)
-        }
-
-        // Get progression states and compute weights
-        const progressionMap = await getProgressionStates(
-          session.exercises.map(e => e.exerciseId)
-        )
-
-        // Build exercises with computed weights
-        const exercisesWithWeights = await Promise.all(
-          session.exercises.map(async exercise => {
-            const progression = progressionMap[exercise.exerciseId]
-            const lastWorkoutData = await getLastWorkoutForExercise(exercise.exerciseId)
-
-            let sessionWeight = progression?.currentWeight || exercise.startingWeight || 0
-            let weightReason = null
-
-            if (lastWorkoutData?.exercise?.sets) {
-              const { weight, reason } = computeSessionWeight(progression, {
-                exercise,
-                sets: lastWorkoutData.exercise.sets
-              })
-              sessionWeight = weight
-              weightReason = reason
-            }
-
-            return {
-              exerciseId: exercise.exerciseId,
-              name: exercise.name,
-              movementType: exercise.movementType,
-              targetReps: exercise.targetReps,
-              startingWeight: sessionWeight,
-              sets: Array.from({ length: exercise.sets }, (_, i) => ({
-                setNumber: i + 1,
-                targetReps: exercise.targetReps,
-                actualReps: null,
-                weight: sessionWeight,
-                rpe: null,
-                completed: false
-              })),
-              setsCompleted: 0,
-              weightReason,
-              alternatives: exercise.alternatives || []
-            }
-          })
-        )
-
-        dispatch({
-          type: 'SELECT_SESSION',
-          payload: {
-            sessionLabel: nextSessionLabel,
-            exercises: exercisesWithWeights
-          }
-        })
-      }
+      setSuggestedSession(nextSessionLabel)
     }
 
     loadOrStartWorkout()
   }, [sessions.length, state.mode])
+
+  async function startSession(sessionLabel) {
+    const session = sessions.find(s => s.label === sessionLabel)
+    if (!session) return
+
+    for (const exercise of session.exercises) {
+      await initializeProgressionState(exercise.exerciseId, exercise)
+    }
+
+    const progressionMap = await getProgressionStates(
+      session.exercises.map(e => e.exerciseId)
+    )
+
+    const exercisesWithWeights = await Promise.all(
+      session.exercises.map(async exercise => {
+        const progression = progressionMap[exercise.exerciseId]
+        const lastWorkoutData = await getLastWorkoutForExercise(exercise.exerciseId)
+
+        let sessionWeight = progression?.currentWeight || exercise.startingWeight || 0
+        let weightReason = null
+
+        if (lastWorkoutData?.exercise?.sets) {
+          const { weight, reason } = computeSessionWeight(progression, {
+            exercise,
+            sets: lastWorkoutData.exercise.sets
+          })
+          sessionWeight = weight
+          weightReason = reason
+        }
+
+        return {
+          exerciseId: exercise.exerciseId,
+          name: exercise.name,
+          movementType: exercise.movementType,
+          targetReps: exercise.targetReps,
+          startingWeight: sessionWeight,
+          sets: Array.from({ length: exercise.sets }, (_, i) => ({
+            setNumber: i + 1,
+            targetReps: exercise.targetReps,
+            actualReps: null,
+            weight: sessionWeight,
+            rpe: null,
+            completed: false
+          })),
+          setsCompleted: 0,
+          weightReason,
+          alternatives: exercise.alternatives || []
+        }
+      })
+    )
+
+    dispatch({
+      type: 'SELECT_SESSION',
+      payload: { sessionLabel, exercises: exercisesWithWeights }
+    })
+  }
 
 
   function handleSetComplete(exerciseIndex, setIndex, reps, rpe, weight) {
@@ -314,6 +301,40 @@ export default function TodayTab({ onBack }) {
     )
   }
 
+
+  if (state.mode === 'picking' && suggestedSession) {
+    return (
+      <div className="px-4 flex flex-col min-h-screen" style={{ paddingTop: 'max(2rem, env(safe-area-inset-top))', paddingBottom: '5rem' }}>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-lg font-bold">Today's Workout</h2>
+          {onBack && (
+            <button onClick={onBack} className="px-3 py-2 text-sm font-medium hover:bg-divider rounded transition-colors">
+              Back
+            </button>
+          )}
+        </div>
+        <div className="space-y-3">
+          {sessions.map(session => (
+            <button
+              key={session.label}
+              onClick={() => startSession(session.label)}
+              className={`w-full text-left p-4 rounded border transition-colors ${
+                session.label === suggestedSession
+                  ? 'bg-black text-white border-black'
+                  : 'bg-white text-black border-divider hover:bg-divider'
+              }`}
+            >
+              <div className="font-semibold">{session.label}</div>
+              <div className={`text-sm mt-1 ${session.label === suggestedSession ? 'text-gray-300' : 'text-secondary'}`}>
+                {session.exercises.length} exercises
+                {session.label === suggestedSession && ' · suggested'}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   if (state.mode === 'summary') {
     return (
