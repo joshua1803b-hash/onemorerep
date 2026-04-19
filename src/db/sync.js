@@ -17,7 +17,6 @@ export async function pushWorkout(workout) {
 
   if (error) {
     console.error('Sync: failed to push workout', error)
-    alert(`Sync error: ${error.message}`)
   }
 }
 
