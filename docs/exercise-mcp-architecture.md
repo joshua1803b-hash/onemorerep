@@ -322,7 +322,7 @@ as today.
 
 1. **Catalog + ledger + backfill + reference-based pack + provider seam**
    (pure app/DB; no MCP). Delivers "plans are swappable, history carries" with
-   a paste-JSON import.
+   a paste-JSON import. — **✅ Implemented (see §14).**
 2. **Resolver + preview/confirm UI** (still no server) — the mapping diff and
    alias-learning loop.
 3. **MCP server** wrapping 1–2 as tools/resources, enabling PDF/Excel ingestion
@@ -330,3 +330,49 @@ as today.
 
 Each phase is independently shippable; step 2 already gives working
 "load a plan, keep history" behaviour before any MCP infrastructure exists.
+
+---
+
+## 14. Phase 1 — as built
+
+Landed in this branch, pure app/DB, no MCP yet.
+
+**New modules**
+- `src/program/schema.js` — pack validator (fail-closed), `normalizeName`,
+  `DEFAULT_PROGRESSION_RULES`.
+- `src/program/transform.js` — pure `legacyProgramToPack`, `hydratePack`,
+  `epley1RM`, `slugify` (unit-tested, 22 assertions).
+- `src/db/exerciseCatalog.js` — canonical catalog + alias union + `resolveToCanonical`.
+- `src/db/ledger.js` — `buildLedger()` projection of `workoutLog` (Epley 1RM).
+- `src/db/programPack.js` — pack storage + active-pack pointer.
+- `src/program/localProvider.js` — `activateDefaultPack`, `activatePack`,
+  `importPack`, `ensureProgramSystem` (backfill).
+
+**Changed**
+- `src/db/db.js` — v4 migration: `exerciseCatalog`, `programPack`, and the
+  previously-undeclared `bodyWeight` table (latent bug fix).
+- `src/utils/progressionEngine.js` — takes `progressionRules` (defaults to
+  `DEFAULT_PROGRESSION_RULES`; behaviour unchanged for the default pack).
+- `Onboarding.jsx` / `MeTab.jsx` — seed via the provider; MeTab gains an
+  **Import Plan (JSON)** box; reset clears the new tables.
+- `App.jsx` — runs `ensureProgramSystem()` on startup (idempotent backfill).
+- `TodayTab.jsx` / `ExerciseCard.jsx` — thread the active pack's rules through.
+
+**Design decisions taken during build**
+- **Hydrate into the existing `db.program`** rather than rewrite every consumer:
+  the pack is the source, `db.program` is a hydrated cache in the current shape,
+  so `TodayTab` / `BonusRound` / `PostWorkoutSummary` are untouched at the data
+  layer. A swap = re-hydrate.
+- **`seedWeightKg`** added to pack exercises as a cold-start hint. Weight
+  resolution order at hydration: live `progressionState` → ledger `lastWeight`
+  → `seedWeightKg` → 0. Existing users keep exact weights; new plans inherit
+  history; brand-new movements fall back to the plan's hint.
+- **Backfill is non-destructive**: for existing installs it registers a pack
+  from the current program and leaves `db.program` weights as-is.
+- **est. 1RM = Epley** (open question §12.3), **auth unchanged** (single-user
+  anon key, §12.4) — neither blocks a local Phase 1.
+
+**Not in Phase 1 (deferred):** Supabase sync of catalog/packs (needs the new
+tables provisioned server-side; log sync is unchanged), and the resolver /
+preview-confirm UI (Phase 2). Paste-JSON import currently auto-creates catalog
+entries from inline/embedded fields without the confirm step.

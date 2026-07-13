@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { db } from '../../db/db'
-import { seedProgram, JEFF_NIPPARD_4X } from '../../db/seed'
+import { activateDefaultPack, importPack } from '../../program/localProvider'
 import { useSettings } from '../../contexts/SettingsContext'
 
 function formatDuration(seconds) {
@@ -14,6 +14,10 @@ export default function MeTab({ onBack }) {
   const { compoundRest, isolationRest, saveRestTimers } = useSettings()
   const [compound, setCompound] = useState(null)
   const [isolation, setIsolation] = useState(null)
+  const [showImport, setShowImport] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importError, setImportError] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   // Use local state if edited, otherwise fall back to context values
   const compoundVal = compound ?? compoundRest
@@ -36,7 +40,7 @@ export default function MeTab({ onBack }) {
   async function handleLoadProgram() {
     setLoading(true)
     try {
-      await seedProgram(JEFF_NIPPARD_4X)
+      await activateDefaultPack()
       window.location.reload()
     } catch (err) {
       console.error('Failed to load program:', err)
@@ -44,13 +48,30 @@ export default function MeTab({ onBack }) {
     }
   }
 
+  async function handleImport() {
+    setImporting(true)
+    setImportError(null)
+    try {
+      await importPack(importText)
+      window.location.reload()
+    } catch (err) {
+      console.error('Failed to import plan:', err)
+      setImportError(err.message || 'Import failed')
+      setImporting(false)
+    }
+  }
+
   async function handleReset() {
     if (confirm('This will delete all data. Are you sure?')) {
       try {
-        await db.program.clear()
-        await db.workoutLog.clear()
-        await db.progressionState.clear()
-        await db.settings.clear()
+        await Promise.all([
+          db.program.clear(),
+          db.workoutLog.clear(),
+          db.progressionState.clear(),
+          db.programPack.clear(),
+          db.exerciseCatalog.clear(),
+          db.settings.clear()
+        ])
         window.location.reload()
       } catch (err) {
         console.error('Failed to reset data:', err)
@@ -117,6 +138,51 @@ export default function MeTab({ onBack }) {
         >
           {loading ? 'Loading Program...' : 'Load Default Program'}
         </button>
+      </div>
+
+      {/* Import Plan (JSON) */}
+      <div className="border-t border-divider pt-4 space-y-3">
+        {!showImport ? (
+          <button
+            onClick={() => setShowImport(true)}
+            className="w-full py-3 border border-black text-black rounded font-medium transition-colors hover:bg-black hover:text-white"
+          >
+            Import Plan (JSON)
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <label className="text-sm font-semibold block">Paste a Program Pack</label>
+            <p className="text-xs text-secondary">
+              Swaps in a new plan. Your workout history and weights are kept — matching
+              exercises carry their weight forward.
+            </p>
+            <textarea
+              value={importText}
+              onChange={e => setImportText(e.target.value)}
+              placeholder='{"packId":"my_plan","name":"My Plan","sessions":[...]}'
+              rows={6}
+              className="w-full px-2 py-2 border border-divider rounded text-xs font-mono"
+            />
+            {importError && (
+              <p className="text-xs text-black border border-black rounded p-2 break-words">{importError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleImport}
+                disabled={importing || !importText.trim()}
+                className="flex-1 py-2 bg-black text-white rounded font-medium text-sm transition-colors hover:bg-[#333333] disabled:opacity-50"
+              >
+                {importing ? 'Importing...' : 'Import & Activate'}
+              </button>
+              <button
+                onClick={() => { setShowImport(false); setImportError(null) }}
+                className="flex-1 py-2 border border-divider rounded text-sm transition-colors hover:bg-divider"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reset */}
