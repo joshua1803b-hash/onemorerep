@@ -308,9 +308,13 @@ as today.
    carry-forward when rep ranges differ between plans.
 4. **Auth** — Supabase is currently anon-key/single-user (`src/db/supabase.js`).
    Multi-user would need RLS + per-user scoping before the MCP writes.
-5. **PDF/Excel parsing** happens in the MCP (Claude), or a deterministic
-   pre-parser (PapaParse for Excel/CSV) feeding Claude only for exercise-name
-   resolution? Latter is cheaper/more reliable for tabular Excel.
+5. **PDF/Excel parsing** — **Decided: Claude parses everything.** The MCP
+   hands the whole file to Claude, which extracts sessions, sets, reps, and
+   exercise names in a single pass, then feeds that draft into
+   `resolve_exercise`. Handles any layout (PDF or spreadsheet) uniformly; no
+   deterministic pre-parser. Trade-off: less deterministic on clean tabular
+   Excel, so the mandatory preview/confirm step (§4.2) is the safety net that
+   catches extraction mistakes before any write.
 
 ---
 
