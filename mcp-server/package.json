@@ -1,0 +1,15 @@
+{
+  "name": "fitness-tracker-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server that ingests a training plan and publishes it into the fitness app's Supabase database (reference-based program packs + canonical exercise catalog).",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.110.3"
+  }
+}
