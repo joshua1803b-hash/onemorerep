@@ -2,7 +2,8 @@ import { db } from '../db/db'
 import {
   upsertCatalogExercise,
   upsertCatalogExercises,
-  getCatalogMap
+  getCatalogMap,
+  getAllCatalogExercises
 } from '../db/exerciseCatalog'
 import { buildLedger } from '../db/ledger'
 import { savePack, getPack, listPacks, getActivePackId, setActivePackId } from '../db/programPack'
@@ -10,6 +11,7 @@ import { getAllProgressionStates } from '../db/progression'
 import { JEFF_NIPPARD_4X } from '../db/seed'
 import { validateProgramPack, DEFAULT_PROGRESSION_RULES } from './schema'
 import { legacyProgramToPack, hydratePack } from './transform'
+import { pushCatalog, pushPack, pullPacks } from '../db/sync'
 
 /**
  * Local Program Provider — the seam between reference-based Program Packs and
@@ -75,7 +77,23 @@ export async function activateDefaultPack() {
   await upsertCatalogExercises(catalogEntries)
   await savePack(pack)
   await activatePack(pack.packId)
+  pushPackToRemote(pack)
   return pack.packId
+}
+
+/**
+ * Fire-and-forget push of the current catalog + a pack to Supabase. Never awaits
+ * and never throws (offline / missing config is fine — the local write already
+ * succeeded before this runs).
+ * @param {Object} pack
+ */
+function pushPackToRemote(pack) {
+  getAllCatalogExercises()
+    .then(catalog => pushCatalog(catalog))
+    .catch(() => {})
+  Promise.resolve()
+    .then(() => pushPack(pack, { active: true }))
+    .catch(() => {})
 }
 
 /**
@@ -122,7 +140,28 @@ export async function importPack(rawPack) {
 
   await savePack(pack)
   await activatePack(pack.packId)
+  pushPackToRemote(pack)
   return pack.packId
+}
+
+/**
+ * Pull the catalog + packs published remotely (e.g. by the MCP server) into the
+ * local DB, and if the remote-active pack differs from the local active pack,
+ * switch to it. Best-effort: never throws, so a network failure can't block load.
+ * @returns {Promise<void>}
+ */
+export async function syncPacksFromRemote() {
+  try {
+    const remoteActiveId = await pullPacks()
+    if (!remoteActiveId) return
+
+    const localActiveId = await getActivePackId()
+    if (remoteActiveId !== localActiveId) {
+      await activatePack(remoteActiveId)
+    }
+  } catch (err) {
+    console.error('Sync: syncPacksFromRemote failed', err)
+  }
 }
 
 /**

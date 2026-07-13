@@ -9,7 +9,7 @@ import HistoryTab from './components/history/HistoryTab'
 import MeTab from './components/me/MeTab'
 import Onboarding from './components/Onboarding'
 import { restoreFromSupabase } from './db/sync'
-import { ensureProgramSystem } from './program/localProvider'
+import { ensureProgramSystem, syncPacksFromRemote } from './program/localProvider'
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState(null) // null means home screen
@@ -42,6 +42,11 @@ function AppContent() {
     restoreIfEmpty()
       .then(ensureProgramSystem)
       .then(checkOnboarding)
+      // Pull any remotely-published packs (e.g. from the MCP server) after the
+      // app has rendered. syncPacksFromRemote never throws, so a network failure
+      // can't block load; the extra .catch guards the earlier chain steps too.
+      .then(() => syncPacksFromRemote())
+      .catch((err) => console.error('Startup chain failed:', err))
 
     // Re-check onboarding when app comes back from standby
     function handleVisibilityChange() {
