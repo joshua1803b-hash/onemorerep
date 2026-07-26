@@ -155,6 +155,34 @@ All data is stored offline in your browser's IndexedDB. No backend, no sync. The
 - `progressionState`: Current weight/RPE per exercise
 - `bodyWeight`: Body weight entries
 - `settings`: Unit preference, onboarding flag
+- `exerciseCatalog`: Canonical, plan-independent movements (identity + aliases)
+- `programPack`: Versioned, swappable training plans (Program Pack architecture)
+
+---
+
+## Supabase Sync (single-user backup + MCP publishing)
+
+Backup/sync uses the Supabase anon key directly from the browser (single user, no
+auth). Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to enable it; if they
+are unset, every sync call degrades gracefully and the app keeps working offline.
+
+The Program Pack architecture adds two Supabase tables (snake_case) that mirror the
+local `exerciseCatalog` and `programPack` Dexie tables:
+
+- `exercise_catalog(canonical_id pk, display_name, aliases, muscle_group, movement_type, equipment, default_increment_kg, created_at, updated_at)`
+- `program_pack(pack_id pk, version, name, source, progression_rules, sessions, is_active, updated_at)` — exactly one row has `is_active = true`.
+
+Run **[`docs/supabase-schema.sql`](docs/supabase-schema.sql)** in the Supabase SQL
+editor to create them (it uses `CREATE TABLE IF NOT EXISTS`; give them the same RLS
+posture as your existing tables — see the comments in that file).
+
+**MCP → app propagation:** an external writer (the MCP server) publishes a plan by
+upserting rows into `exercise_catalog` + `program_pack` and setting one pack's
+`is_active = true`. On startup the app calls `syncPacksFromRemote()`, which pulls
+both tables into IndexedDB and, if the remote-active `pack_id` differs from the
+local `activePackId`, activates it — so the published plan becomes the live program.
+Locally activating or importing a pack pushes it back the same way
+(`is_active = true`), keeping a single source of truth for the active plan.
 
 ---
 

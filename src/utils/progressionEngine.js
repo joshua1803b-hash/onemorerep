@@ -1,60 +1,67 @@
 /**
  * Progression Engine — RPE-driven auto-regulation
- * Pure functions, no side effects
+ * Pure functions, no side effects.
+ *
+ * The RPE threshold and per-movement increments are supplied by the active
+ * Program Pack's `progressionRules` (see src/program/schema.js). They default
+ * to DEFAULT_PROGRESSION_RULES, which matches the values that were previously
+ * hardcoded here — so callers that don't pass rules behave exactly as before.
  */
+
+import { DEFAULT_PROGRESSION_RULES } from '../program/schema'
 
 /**
  * Check if a single completed set warrants a weight increase for the next set
  * @param {Object} completedSet - { targetReps, actualReps, rpe, weight, setNumber }
  * @param {number} totalSetsForExercise - to know if this is the last set
  * @param {number} currentSetNumber - 1-indexed
+ * @param {Object} [rules] - progression rules from the active pack
  * @returns {boolean}
  */
-export function shouldSuggestWeightIncrease(completedSet, totalSetsForExercise, currentSetNumber) {
+export function shouldSuggestWeightIncrease(completedSet, totalSetsForExercise, currentSetNumber, rules = DEFAULT_PROGRESSION_RULES) {
   // Don't suggest on the last set
   if (currentSetNumber >= totalSetsForExercise) {
     return false
   }
 
   const { targetReps, actualReps, rpe } = completedSet
+  const threshold = rules?.rpeIncreaseThreshold ?? DEFAULT_PROGRESSION_RULES.rpeIncreaseThreshold
 
-  // Suggest if RPE < 8.5 OR if actual reps exceeded target
-  return rpe < 8.5 || actualReps > targetReps
+  // Suggest if RPE below threshold OR if actual reps exceeded target
+  return rpe < threshold || actualReps > targetReps
 }
 
 /**
  * Compute the weight increment for the next set
  * @param {number} currentWeight
  * @param {string} movementType - 'compound_upper' | 'compound_lower' | 'isolation'
+ * @param {Object} [rules] - progression rules from the active pack
  * @returns {number}
  */
-export function computeNextSetWeight(currentWeight, movementType) {
-  let increment = 0
-
-  switch (movementType) {
-    case 'compound_upper':
-      increment = 2.5
-      break
-    case 'compound_lower':
-      increment = 5.0
-      break
-    case 'isolation':
-      increment = 1.25
-      break
-    default:
-      increment = 2.5
-  }
-
+export function computeNextSetWeight(currentWeight, movementType, rules = DEFAULT_PROGRESSION_RULES) {
+  const increment = getIncrement(movementType, rules)
   return Number((currentWeight + increment).toFixed(2))
+}
+
+/**
+ * Resolve the per-movement increment from a rules object.
+ * @param {string} movementType
+ * @param {Object} [rules]
+ * @returns {number}
+ */
+function getIncrement(movementType, rules = DEFAULT_PROGRESSION_RULES) {
+  const increments = rules?.incrementsKg || DEFAULT_PROGRESSION_RULES.incrementsKg
+  return increments[movementType] ?? increments.isolation ?? 2.5
 }
 
 /**
  * Compute weight for the next session based on last session RPE
  * @param {Object} progressionState - current progression state
  * @param {Object} lastExerciseData - { exercise, sets } from last workout log
+ * @param {Object} [rules] - progression rules from the active pack
  * @returns {{ weight: number, reason: string | null }}
  */
-export function computeSessionWeight(progressionState, lastExerciseData) {
+export function computeSessionWeight(progressionState, lastExerciseData, rules = DEFAULT_PROGRESSION_RULES) {
   if (!lastExerciseData) {
     // No previous workout for this exercise
     return {
@@ -64,15 +71,17 @@ export function computeSessionWeight(progressionState, lastExerciseData) {
   }
 
   const { exercise, sets } = lastExerciseData
+  const threshold = rules?.rpeIncreaseThreshold ?? DEFAULT_PROGRESSION_RULES.rpeIncreaseThreshold
 
   // Calculate average RPE from last session
   const avgRpe = getAvgRpe(sets)
 
-  // If last session's avg RPE was below 8.5, increase weight
-  if (avgRpe < 8.5) {
+  // If last session's avg RPE was below the threshold, increase weight
+  if (avgRpe < threshold) {
     const newWeight = computeNextSetWeight(
       progressionState.currentWeight,
-      exercise.movementType
+      exercise.movementType,
+      rules
     )
 
     return {
@@ -146,17 +155,9 @@ export function formatRPE(rpe) {
 /**
  * Get weight increment label
  * @param {string} movementType
+ * @param {Object} [rules] - progression rules from the active pack
  * @returns {string}
  */
-export function getIncrementLabel(movementType) {
-  switch (movementType) {
-    case 'compound_upper':
-      return '+2.5 kg'
-    case 'compound_lower':
-      return '+5 kg'
-    case 'isolation':
-      return '+1.25 kg'
-    default:
-      return '+2.5 kg'
-  }
+export function getIncrementLabel(movementType, rules = DEFAULT_PROGRESSION_RULES) {
+  return `+${getIncrement(movementType, rules)} kg`
 }

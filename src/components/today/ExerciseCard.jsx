@@ -8,6 +8,7 @@ import BonusRound from './BonusRound'
 export default function ExerciseCard({
   exercise,
   exerciseIndex,
+  progressionRules,
   onSetComplete,
   onSuggestWeight,
   onSwap,
@@ -52,8 +53,8 @@ export default function ExerciseCard({
                   onSetComplete(exerciseIndex, setIdx, reps, rpe, weight)
 
                   // Check if should suggest weight increase
-                  if (shouldSuggestWeightIncrease(set, exercise.sets.length, setIdx + 1)) {
-                    const newWeight = computeNextSetWeight(set.weight, exercise.movementType)
+                  if (shouldSuggestWeightIncrease(set, exercise.sets.length, setIdx + 1, progressionRules)) {
+                    const newWeight = computeNextSetWeight(set.weight, exercise.movementType, progressionRules)
                     onSuggestWeight(setIdx, newWeight)
                   }
                 }}

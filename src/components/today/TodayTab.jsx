@@ -148,6 +148,7 @@ export default function TodayTab({ onBack }) {
   const [suggestedSession, setSuggestedSession] = useState(null)
 
   const sessions = program?.sessions || []
+  const progressionRules = program?.progressionRules
 
   // Save active workout to database whenever state changes
   useEffect(() => {
@@ -207,7 +208,7 @@ export default function TodayTab({ onBack }) {
           const { weight, reason } = computeSessionWeight(progression, {
             exercise,
             sets: lastWorkoutData.exercise.sets
-          })
+          }, progressionRules)
           sessionWeight = weight
           weightReason = reason
         }
@@ -269,7 +270,7 @@ export default function TodayTab({ onBack }) {
       const result = computeSessionWeight(progression, {
         exercise: newExercise,
         sets: lastWorkout.exercise.sets
-      })
+      }, progressionRules)
       sessionWeight = result.weight
       weightReason = result.reason
     }
@@ -406,6 +407,7 @@ export default function TodayTab({ onBack }) {
                 <ExerciseCard
                   exercise={exercise}
                   exerciseIndex={idx}
+                  progressionRules={progressionRules}
                   onSetComplete={handleSetComplete}
                   onSuggestWeight={(setIdx, newWeight) =>
                     dispatch({
@@ -484,6 +486,7 @@ export default function TodayTab({ onBack }) {
           <ExerciseCard
             exercise={currentExercise}
             exerciseIndex={firstIncompleteExIdx >= 0 ? firstIncompleteExIdx : 0}
+            progressionRules={progressionRules}
             onSetComplete={handleSetComplete}
             onSuggestWeight={(setIdx, newWeight) =>
               dispatch({
