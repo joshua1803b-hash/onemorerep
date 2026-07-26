@@ -376,3 +376,50 @@ Landed in this branch, pure app/DB, no MCP yet.
 tables provisioned server-side; log sync is unchanged), and the resolver /
 preview-confirm UI (Phase 2). Paste-JSON import currently auto-creates catalog
 entries from inline/embedded fields without the confirm step.
+
+---
+
+## 15. Phases 2–3 — as built
+
+Both landed; the system is end-to-end operational.
+
+**Supabase sync (app side)** — `pushCatalog` / `pushPack` (single active pack) /
+`pullPacks` in `src/db/sync.js`; `syncPacksFromRemote()` in `localProvider.js`
+adopts a remotely-activated pack on startup; `activateDefaultPack` and
+`importPack` fire-and-forget push. All network paths degrade gracefully offline.
+
+**MCP server** (`mcp-server/`) — stdio server on `@modelcontextprotocol/sdk`.
+Resources `catalog://exercises`, `plan://active`, `history://performance`; tools
+`list_catalog`, `resolve_exercise`, `get_exercise_history`, `preview_import`,
+`commit_import`. Resolver/ledger/schema ported from the app so accept/reject
+behaviour is identical. Writes prefer `SUPABASE_SERVICE_KEY`.
+
+**Live infrastructure** — Supabase project `onemorerep`
+(`gjuaecwlxurksqlmoiic`, eu-central-1). All six tables created with RLS enabled
+and permissive single-user policies: `workout_log`, `progression_state`,
+`program`, `exercise_library`, `exercise_catalog`, `program_pack`. Verified by a
+round-trip write/read/cleanup of a pack + catalog entry.
+
+> **Note:** the original Supabase project was paused past the free tier's 90-day
+> limit and could not be restored, so its cloud tables were lost. On-device
+> IndexedDB is the source of truth, so no workout history was lost — but the
+> Vercel env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) had to be
+> repointed at the new project and the app redeployed.
+
+### Two publishing routes
+
+Desktop uses the stdio MCP server. Phone cannot reach a local stdio process, and
+a custom *remote* connector would require a publicly-hosted OAuth 2.1 server —
+disproportionate for a single-user app. Since the app reads its plan from
+Supabase, the **official Supabase connector** publishes plans from any device
+against the same tables, with the same validation applied by hand. Runbook:
+[`publishing-plans.md`](publishing-plans.md).
+
+### Still open
+
+- **Phase 2's in-app preview/confirm UI** was not built. The confirm step lives
+  in chat instead (`preview_import` → user confirms → `commit_import`, or the
+  mapping table in the Supabase-connector runbook). The app's paste-JSON import
+  still auto-creates catalog entries with no confirm step.
+- **Live end-to-end test** of a real PDF → published pack → app adoption has not
+  been run yet.

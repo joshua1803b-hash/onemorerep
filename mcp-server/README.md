@@ -91,7 +91,20 @@ same `mcpServers` shape (e.g. via `.mcp.json` or `claude mcp add`).
 }
 ```
 
-Replace `/absolute/path/to/` with the real path to this directory.
+Replace `/absolute/path/to/` with the real path to this directory. Get the
+service role key from Supabase → **Settings → API → `service_role`**.
+
+## Phone / other devices
+
+This server speaks **stdio**, so it only works where a local process can be
+spawned — i.e. Claude Desktop on the same machine. The phone app cannot reach
+it, and a custom *remote* connector would require a publicly-hosted server
+implementing OAuth 2.1.
+
+For phone (and anywhere else), publish plans using the official **Supabase
+connector** against the same tables — the app can't tell the difference. The
+step-by-step runbook, including the SQL and the validation rules to enforce, is
+in [`../docs/publishing-plans.md`](../docs/publishing-plans.md).
 
 ## Typical flow
 
